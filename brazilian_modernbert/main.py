@@ -1,5 +1,6 @@
 import os
 import logging
+import shutil
 
 from src.brazilian_modernbert.configs import (
     CACHED_DATA_FOLDER,
@@ -48,6 +49,14 @@ def main():
             "LOAD_AND_PREPROCESS_DATASET is True. Running full preprocessing..."
         )
         raw_datasets = load_all_datasets(cached_data_folder=CACHED_DATA_FOLDER)
+
+        hub_path = os.path.join(CACHED_DATA_FOLDER, "hub")
+        if os.path.exists(hub_path):
+            logger.warning(
+                f"Deleting {hub_path} to free space for processing..."
+            )
+            shutil.rmtree(hub_path)
+
         splitted_dataset = preprocess_concatenated_dataset(
             DATA_FOLDER, raw_datasets
         )
@@ -77,7 +86,7 @@ def main():
         tokenizer=tokenizer,
         vocabulary_size=VOCABULARY_SIZE,
         context_size=CONTEXT_SIZE,
-        input_dataset=splitted_dataset["train"],
+        input_dataset=splitted_dataset,
     )
     logger.info(tokenized_dataset)
 

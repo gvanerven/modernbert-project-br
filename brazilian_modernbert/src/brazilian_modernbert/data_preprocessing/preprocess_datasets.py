@@ -47,37 +47,40 @@ def clean_for_second_phase(dataset):
 def preprocess_concatenated_dataset(data_path, dataset):
     logger.info("Preprocessing concatenated dataset")
 
-    # preprocessed_dataset = dataset.map(
-    #     get_document_metadata_paragraphs,
-    #     batched=True,
-    #     remove_columns=["text"],
-    #     num_proc=cpu_count(),
-    # )
     preprocessed_dataset = dataset.map(
-        get_document_metadata_entire_text,
+        get_document_metadata_paragraphs,
         batched=True,
         remove_columns=["text"],
         num_proc=cpu_count(),
     )
-
-    # preprocessed_dataset = preprocessed_dataset.rename_column(
-    #     "paragraphs", "text"
+    # preprocessed_dataset = dataset.map(
+    #     get_document_metadata_entire_text,
+    #     batched=True,
+    #     remove_columns=["text"],
+    #     num_proc=cpu_count(),
     # )
 
-    logger.info("Cleaning for first training phase")
-    # cleaned_for_fist_phase = clean_for_first_phase(preprocessed_dataset)
-    cleaned_for_second_phase = clean_for_second_phase(preprocessed_dataset)
-
-    logger.info("Splitting dataset")
-    # split_dataset = cleaned_for_fist_phase.train_test_split(
-    #     test_size=0.1, shuffle=True, seed=42
-    # )
-    split_dataset = cleaned_for_second_phase.train_test_split(
-        test_size=0.1, shuffle=True, seed=42
+    preprocessed_dataset = preprocessed_dataset.rename_column(
+        "paragraphs", "text"
     )
 
+    logger.info("Cleaning for first training phase")
+    cleaned_for_fist_phase = clean_for_first_phase(preprocessed_dataset)
+    # cleaned_for_second_phase = clean_for_second_phase(preprocessed_dataset)
+
+    logger.info("Splitting dataset")
+    split_dataset = cleaned_for_fist_phase.train_test_split(
+        test_size=0.1, shuffle=True, seed=42
+    )
+    # split_dataset = cleaned_for_second_phase.train_test_split(
+    #     test_size=0.1, shuffle=True, seed=42
+    # )
+
+    train_count = len(split_dataset["train"])
+    logger.info(f"Total Training Samples available: {train_count:_}")
+
     split_save_path = os.path.join(data_path, "split_datasets")
-    split_dataset.save_to_disk(split_save_path)
+    split_dataset["test"].save_to_disk(split_save_path)
     logger.info("Splitted dataset saved on %s", split_save_path)
 
     return split_dataset

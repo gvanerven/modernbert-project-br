@@ -52,7 +52,7 @@ class Config:
 
     TOKENIZED_DS_PATH = os.path.join(
         DATA_FOLDER,
-        f"tokenized-for-training/custom/vocab_size:{VOCAB_SIZE:_}/context_size:{CONTEXT_SIZE}",
+        f"padded-tokenized-for-training-test/custom/vocab_size:{VOCAB_SIZE:_}/context_size:{CONTEXT_SIZE}",
     )
 
 
@@ -117,6 +117,35 @@ class Metrics:
         return {"mse": mse, "pearson": pearson_corr}
 
 
+def preprocess_logits_for_metrics(logits, labels):
+    """
+    This runs ON THE GPU.
+    We take the argmax here so we don't have to transfer full logits to CPU.
+    """
+    if isinstance(logits, tuple):
+        # Depending on model, logits might be a tuple (logits, hidden_states)
+        logits = logits[0]
+    # Return the index of the predicted token (int32/64) instead of full float logits
+    return logits.argmax(dim=-1)
+
+
+def compute_mlm_metrics(eval_pred):
+    # preds are now the ARGMAX integers from the function above
+    preds, labels = eval_pred
+
+    # Create mask where label != -100 (ignore padding/unmasked)
+    mask = labels != -100
+
+    # Filter
+    filtered_preds = preds[mask]
+    filtered_labels = labels[mask]
+
+    # Calculate accuracy
+    accuracy = (filtered_preds == filtered_labels).mean()
+
+    return {"accuracy": accuracy}
+
+
 # MLM Testing
 def run_mlm_test(tokenizer):
     model = ModernBertForMaskedLM.from_pretrained(Config.BASE_MODEL_PATH)
@@ -129,8 +158,11 @@ def run_mlm_test(tokenizer):
         print(f"Loading dataset from: {Config.TOKENIZED_DS_PATH}")
         try:
             tokenized_datasets = load_from_disk(Config.TOKENIZED_DS_PATH)
-            evaluation_dataset = tokenized_datasets["test"]
+            # evaluation_dataset = tokenized_datasets
 
+            evaluation_dataset = tokenized_datasets.shuffle(seed=42).select(
+                range(100_000)
+            )
             # Using your specific probability of 0.3
             data_collator = DataCollatorForLanguageModeling(
                 tokenizer=tokenizer, mlm=True, mlm_probability=0.3
@@ -139,10 +171,12 @@ def run_mlm_test(tokenizer):
             eval_args = TrainingArguments(
                 output_dir="evaluating/mlm_test",
                 do_train=False,
-                per_device_eval_batch_size=32,
+                per_device_eval_batch_size=16,
+                dataloader_num_workers=8,
                 logging_dir="evaluating/evaluation-logs",
                 report_to=["tensorboard"],
-                fp16=True,
+                fp16=False,
+                bf16=True,
             )
 
             evaluator = Trainer(
@@ -150,6 +184,8 @@ def run_mlm_test(tokenizer):
                 args=eval_args,
                 eval_dataset=evaluation_dataset,
                 data_collator=data_collator,
+                compute_metrics=compute_mlm_metrics,
+                preprocess_logits_for_metrics=preprocess_logits_for_metrics,
             )
 
             print(f"Evaluating on {len(evaluation_dataset)} samples...")
