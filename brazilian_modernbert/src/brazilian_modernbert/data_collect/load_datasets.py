@@ -17,7 +17,7 @@ def load_wikipedia_pages(cached_data_folder: str):
         "wikimedia/wikipedia",
         "20231101.pt",
         split="train",
-        num_proc=cpu_count(),
+        num_proc=max(1, cpu_count()-1),
         cache_dir=cached_data_folder,
     )
 
@@ -29,7 +29,7 @@ def load_brwac(cached_data_folder: str):
         "dominguesm/brwac",
         # data_dir="dataset-brwac",
         split="train",
-        num_proc=cpu_count(),
+        num_proc=max(1, cpu_count()-1),
         cache_dir=cached_data_folder,
         # trust_remote_code=True,
     )
@@ -38,7 +38,7 @@ def load_brwac(cached_data_folder: str):
         paragraph_to_document,
         batched=True,
         remove_columns=["text"],
-        num_proc=cpu_count(),
+        num_proc=max(1, cpu_count()-1),
     )
 
     return cleaned_brwac
@@ -47,7 +47,7 @@ def load_ccpt(cached_data_folder: str):
     ccpt = load_dataset(
         "ClassiCC-Corpus/ClassiCC-PT",
         split="train",
-        num_proc=4,
+        num_proc=max(1, cpu_count()-1),
         cache_dir=cached_data_folder
     )
 

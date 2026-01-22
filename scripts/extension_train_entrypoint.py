@@ -44,7 +44,7 @@ def run_training():
 
     tokenized_datasets_name = os.path.join(
         DATA_FOLDER,
-        f"padded-tokenized-for-training/custom/vocab_size:{vocabulary_size:_}/context_size:{context_size}",
+        f"unpadded-tokenized-for-training/custom/vocab_size:{vocabulary_size:_}/context_size:{context_size}",
     )
     tokenized_datasets = load_from_disk(tokenized_datasets_name)
     training_dataset = tokenized_datasets

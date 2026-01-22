@@ -51,7 +51,7 @@ def preprocess_concatenated_dataset(data_path, dataset):
         get_document_metadata_paragraphs,
         batched=True,
         remove_columns=["text"],
-        num_proc=cpu_count(),
+        num_proc=max(1, cpu_count()-1),
     )
     # preprocessed_dataset = dataset.map(
     #     get_document_metadata_entire_text,
@@ -80,7 +80,7 @@ def preprocess_concatenated_dataset(data_path, dataset):
     logger.info(f"Total Training Samples available: {train_count:_}")
 
     split_save_path = os.path.join(data_path, "split_datasets")
-    split_dataset["test"].save_to_disk(split_save_path)
+    split_dataset.save_to_disk(split_save_path)
     logger.info("Splitted dataset saved on %s", split_save_path)
 
     return split_dataset

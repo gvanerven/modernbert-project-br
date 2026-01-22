@@ -4,7 +4,7 @@ from datasets import load_from_disk
 from tqdm import tqdm
 
 # --- CONFIGURATION ---
-DATASET_PATH = "/work1/lgarcia/renneruan/data/padded-tokenized-for-training/custom/vocab_size:32_768/context_size:8192"
+DATASET_PATH = "/work1/lgarcia/renneruan/data/unpadded-tokenized-for-training/custom/vocab_size:32_768/context_size:8192"
 CONTEXT_LIMIT = 8192
 
 

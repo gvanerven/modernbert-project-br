@@ -112,9 +112,9 @@ fi
 
 # Activate the virtual environment
 module load rocm/6.4.1
-source $WORK/amd_300/bin/activate #
+source $WORK/bertlab/bin/activate #
 rocm-smi
-accelerate launch --multi_gpu --num_processes=8 $WORK/scripts/train_entrypoint.py 
+accelerate launch --multi_gpu --num_processes=8 --mixed_precision="bf16" $WORK/scripts/train_entrypoint.py 
 
 # ---------------------------------------------------------
 # END USER-EDITABLE SECTION

@@ -37,10 +37,10 @@ def run_training():
 
     tokenized_datasets_name = os.path.join(
         DATA_FOLDER,
-        f"padded-tokenized-for-training/custom/vocab_size:{vocabulary_size:_}/context_size:{context_size}",
+        f"unpadded-tokenized-for-training/custom/vocab_size:{vocabulary_size:_}/context_size:{context_size}",
     )
     tokenized_datasets = load_from_disk(tokenized_datasets_name)
-    training_dataset = tokenized_datasets
+    training_dataset = tokenized_datasets['train']
     # eval_dataset = tokenized_datasets["test"]
 
     tokenizer = AutoTokenizer.from_pretrained(
@@ -87,7 +87,7 @@ def run_training():
         save_strategy="steps",
         save_steps=1_000,
         save_total_limit=5,
-        fp16=True,
+        bf16=True,
         report_to="tensorboard",
     )
 
