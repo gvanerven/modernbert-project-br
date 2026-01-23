@@ -30,7 +30,7 @@ def run_training():
     vocabulary_size = 32_768
     context_size = 1024
     tokenizer_name = f"tokenizers/custom/{vocabulary_size:_}"
-    model_name = f"Modern/classiccc-1024-unigram-32768-900ksteps"
+    model_name = f"Modern/large-classiccc-1024-unigram-32768-900ksteps"
 
     output_dir = f"training_test/{model_name}"
     os.makedirs(output_dir, exist_ok=True)
@@ -48,10 +48,11 @@ def run_training():
     )
 
     config = ModernBertConfig.from_pretrained(
-        "answerdotai/ModernBERT-base",
+        "answerdotai/ModernBERT-large",
         reference_compile=False,
         attn_implementation="flash_attention_2",
         vocab_size=vocabulary_size,
+        dtype=torch.float16,
         max_position_embeddings=1024,
     )
     config.vocab_size = vocabulary_size
@@ -67,6 +68,8 @@ def run_training():
     config.sep_token_id = 3
 
     model = ModernBertForMaskedLM(config=config)
+    # Reinitialize weights
+    model.apply(model._init_weights)
     # NOTE: We do NOT call model.to("cuda") or model.half().
     # The Trainer, powered by Accelerate, will handle device placement and mixed precision.
 
@@ -78,15 +81,18 @@ def run_training():
         output_dir=output_dir,
         overwrite_output_dir=False,
         max_steps=900_000,
-        per_device_train_batch_size=256,
+        per_device_train_batch_size=2048,
         gradient_accumulation_steps=1,
-        dataloader_num_workers=128,
+        dataloader_num_workers=64,
         logging_strategy="steps",
         logging_first_step=True,
         logging_steps=1_000,
         save_strategy="steps",
         save_steps=1_000,
         save_total_limit=5,
+        optim="schedule_free_radam",
+        lr_scheduler_type="constant",
+        learning_rate=5e-4,
         bf16=True,
         report_to="tensorboard",
     )

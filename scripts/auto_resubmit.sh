@@ -29,11 +29,11 @@
 #             be submitted to avoid infinite loops
 # ------------------------------------------------------------
 
-#SBATCH -J resubmit-test    # Job name
+#SBATCH -J resubmit-mblg    # Job name
 #SBATCH -o %x-output.%j     # Name of stdout output file (%j expands to jobId)
 #SBATCH -N 1                # Total number of nodes requested
-#SBATCH -t 12:00:00         # Run time (hh:mm:ss)
-#SBATCH -p mi3008x          # Desired partition      
+#SBATCH -t 24:00:00         # Run time (hh:mm:ss)
+#SBATCH -p mi2104x          # Desired partition      
 
 MAX_ITERATIONS=3
 
@@ -55,7 +55,7 @@ if [ "$ITERATION" -eq 1 ]; then
 
     export LAST_JOB_ID="${CURRENT_JOB_ID}"
     echo "Submitting 2nd job."
-    NEXT_JOB_ID=$(sbatch --parsable --dependency=afternotok:${CURRENT_JOB_ID} $WORK/scripts/auto_resubmit.sh)
+    NEXT_JOB_ID=$(sbatch --parsable --dependency=afternotok:${CURRENT_JOB_ID} $WORK/modernbert-project-br/scripts/auto_resubmit.sh)
 
 # We're on the 2nd through N-1 iteration
 elif [[ "$ITERATION" -gt 1 && "$ITERATION" -lt "$MAX_ITERATIONS" ]]; then
@@ -68,7 +68,7 @@ elif [[ "$ITERATION" -gt 1 && "$ITERATION" -lt "$MAX_ITERATIONS" ]]; then
 
         export LAST_JOB_ID="${CURRENT_JOB_ID}"
         echo "Submitting next job."
-        NEXT_JOB_ID=$(sbatch --parsable --dependency=afternotok:${CURRENT_JOB_ID} $WORK/scripts/auto_resubmit.sh)
+        NEXT_JOB_ID=$(sbatch --parsable --dependency=afternotok:${CURRENT_JOB_ID} $WORK/modernbert-project-br/scripts/auto_resubmit.sh)
 
     else
 
@@ -111,10 +111,13 @@ fi
 # ---------------------------------------------------------
 
 # Activate the virtual environment
-module load rocm/6.4.1
-source $WORK/bertlab/bin/activate #
+#module load rocm/6.4.1
+#source $WORK/bertlab/bin/activate 
+module load rocm/7.1.0
+source $WORK/bertx200/bin/activate 
+#
 rocm-smi
-accelerate launch --multi_gpu --num_processes=8 --mixed_precision="bf16" $WORK/scripts/train_entrypoint.py 
+accelerate launch --multi_gpu --num_processes=4 --num_machines=1 --dynamo_backend="inductor" --mixed_precision="bf16" $WORK/modernbert-project-br/scripts/train_entrypoint.py 
 
 # ---------------------------------------------------------
 # END USER-EDITABLE SECTION
