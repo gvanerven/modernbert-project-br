@@ -2,13 +2,15 @@ import os
 import numpy as np
 from datasets import load_from_disk
 from tqdm import tqdm
+import json
 
 # --- CONFIGURATION ---
-DATASET_PATH = "/work1/lgarcia/renneruan/data/unpadded-tokenized-for-training/custom/vocab_size:32_768/context_size:8192"
-CONTEXT_LIMIT = 8192
+DATASET_PATH = "/work1/lgarcia/gvanerven/data/unpadded-tokenized-for-training/custom/vocab_size:32_768/context_size:1024"
+CONTEXT_LIMIT = 1024
 
 
 def analyze_dataset_full(path, limit):
+    tokens_count = {}
     print(f"Loading dataset from: {path}")
 
     try:
@@ -25,9 +27,16 @@ def analyze_dataset_full(path, limit):
     print("Extracting sequence lengths... (this might take a moment)")
 
     # 1. Get all lengths (memory efficient generator converted to list)
-    lengths = [
-        len(x) for x in tqdm(ds["input_ids"], desc="Processing lengths")
-    ]
+    lengths = []
+    for x in tqdm(ds["input_ids"], desc="Processing lengths"):
+        lengths.append(len(x))
+        for t in x:
+            if t in tokens_count:
+                tokens_count[t] += 1
+            else:
+                tokens_count[t] = 1
+
+    
 
     # 2. Convert to numpy for fast stats
     lengths_arr = np.array(lengths)
@@ -91,6 +100,10 @@ def analyze_dataset_full(path, limit):
     print(
         f"Good Seqs (> 1024):         {good_seqs:,}  ({good_seqs/total_seqs:.2%})"
     )
+    print("Saving json count tokens")
+    with open('/work1/lgarcia/gvanerven/data/unpadded-tokenized-for-training_custom_vocab_size_32_768_context_size_1024.json', 'w') as f:
+        json.dump(tokens_count, f)
+
     print("=" * 50)
 
 
