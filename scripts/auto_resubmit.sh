@@ -33,7 +33,7 @@
 #SBATCH -o %x-output.%j     # Name of stdout output file (%j expands to jobId)
 #SBATCH -N 1                # Total number of nodes requested
 #SBATCH -t 12:00:00         # Run time (hh:mm:ss)
-#SBATCH -p mi2508x          # Desired partition      
+#SBATCH -p mi3008x          # Desired partition      
 
 MAX_ITERATIONS=4
 
@@ -112,8 +112,8 @@ fi
 
 # Activate the virtual environment
 module load rocm/7.1.0
-#source $WORK/bertx300/bin/activate
-source $WORK/bertx200/bin/activate 
+source $WORK/bertx300/bin/activate
+#source $WORK/bertx200/bin/activate 
 #
 rocm-smi
 accelerate launch --multi_gpu --num_processes=8 --num_machines=1 --dynamo_backend="no" --mixed_precision="bf16" $WORK/modernbert-project-br/scripts/train_entrypoint.py 
