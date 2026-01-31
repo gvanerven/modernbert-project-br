@@ -22,7 +22,7 @@ def run_training():
     DATA_FOLDER = os.path.join(WORK_DIR, "data")
     CACHED_DATA_FOLDER = os.path.join(WORK_DIR, "cached_data")
     os.environ["HF_HOME"] = CACHED_DATA_FOLDER
-    os.environ["TRITON_HIP_LLD_PATH"] = "/opt/rocm-6.4.1/lib/llvm/bin/ld.lld"
+    os.environ["TRITON_HIP_LLD_PATH"] = "/opt/rocm-7.1.0/lib/llvm/bin/ld.lld"
     os.chdir(WORK_DIR)
 
     accelerator.print(f"Working directory: {os.getcwd()}")
@@ -30,7 +30,7 @@ def run_training():
     vocabulary_size = 32_768
     context_size = 1024
     tokenizer_name = f"tokenizers/custom/{vocabulary_size:_}"
-    model_name = f"Modern/large-classiccc-1024-unigram-32768-900ksteps"
+    model_name = f"Modern/large-classiccc-1024-unigram-32768-300ksteps"
 
     output_dir = f"training_test/{model_name}"
     os.makedirs(output_dir, exist_ok=True)
@@ -52,11 +52,11 @@ def run_training():
         reference_compile=False,
         attn_implementation="flash_attention_2",
         vocab_size=vocabulary_size,
-        dtype=torch.float16,
+        #dtype=torch.float16,
         max_position_embeddings=1024,
     )
     config.vocab_size = vocabulary_size
-    config.max_position_embeddings = 1024
+    #config.max_position_embeddings = 1024
 
     config.global_rope_theta = 10000.0
 
@@ -80,8 +80,8 @@ def run_training():
     training_args = TrainingArguments(
         output_dir=output_dir,
         overwrite_output_dir=False,
-        max_steps=900_000,
-        per_device_train_batch_size=128,
+        max_steps=300_000,
+        per_device_train_batch_size=256,
         gradient_accumulation_steps=2,
         dataloader_num_workers=64,
         logging_strategy="steps",
@@ -118,6 +118,7 @@ def run_training():
         trainer.train()
     accelerator.print("Training complete!")
 
+    trainer.save_model("saved_models/Modern/BERTomelo-ModernBERT-Large-300steps-1k")
 
 if __name__ == "__main__":
     run_training()

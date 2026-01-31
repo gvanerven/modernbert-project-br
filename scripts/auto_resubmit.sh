@@ -35,7 +35,7 @@
 #SBATCH -t 12:00:00         # Run time (hh:mm:ss)
 #SBATCH -p mi3008x          # Desired partition      
 
-MAX_ITERATIONS=4
+MAX_ITERATIONS=8
 
 # ------------------------------------------------------------
 # END USER-EDITABLE SECTION

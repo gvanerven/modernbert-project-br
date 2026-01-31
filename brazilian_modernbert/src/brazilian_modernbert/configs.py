@@ -8,7 +8,10 @@ TRAIN_TOKENIZER = False
 
 WORK_DIR = os.getenv("WORK")
 DATA_FOLDER = os.path.join(WORK_DIR, "data")
-CACHED_DATA_FOLDER = os.path.join(WORK_DIR, "cached_data")
+#CACHED_DATA_FOLDER = os.path.join(WORK_DIR, "cached_data")
+CACHED_DATA_FOLDER = os.path.join(WORK_DIR, ".cache/huggingface")
+USE_ALTERNATIVE_TOKENIZER = False
+ALTERNATIVE_TOKENIZER = "neuralmind/bert-large-portuguese-cased"
 
 
 VOCABULARY_SIZE = 32_768

@@ -36,9 +36,9 @@ class Config:
     CACHED_DATA_FOLDER = os.path.join(WORK_DIR, "cached_data")
 
     # Model & Tokenizer Paths
-    TOKENIZER_PATH = "/work1/lgarcia/renneruan/tokenizers/custom/32_768"
+    TOKENIZER_PATH = "/work1/lgarcia/gvanerven/tokenizers/custom/32_768"
     # Base checkpoint for fine-tuning
-    BASE_MODEL_PATH = "/work1/lgarcia/renneruan/training_test/Modern/classiccc-1024-unigram-32768-900ksteps/checkpoint-900000"
+    BASE_MODEL_PATH = "/work1/lgarcia/gvanerven/training_test/Modern/large-classiccc-1024-unigram-32768-900ksteps/checkpoint-900000"
 
     # Dataset Paths
 
@@ -52,14 +52,14 @@ class Config:
 
     TOKENIZED_DS_PATH = os.path.join(
         DATA_FOLDER,
-        f"padded-tokenized-for-training-test/custom/vocab_size:{VOCAB_SIZE:_}/context_size:{CONTEXT_SIZE}",
+        f"unpadded-tokenized-for-training-test/custom/vocab_size:{VOCAB_SIZE:_}/context_size:{CONTEXT_SIZE}",
     )
 
 
 def setup_environment():
     """Sets up OS environment variables."""
     os.environ["HF_HOME"] = Config.CACHED_DATA_FOLDER
-    os.environ["TRITON_HIP_LLD_PATH"] = "/opt/rocm-6.4.1/lib/llvm/bin/ld.lld"
+    os.environ["TRITON_HIP_LLD_PATH"] = "/opt/rocm-7.1.0/lib/llvm/bin/ld.lld"
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     # Disable tokenizers parallelism to avoid deadlocks in dataloaders
     os.environ["TOKENIZERS_PARALLELISM"] = "false"

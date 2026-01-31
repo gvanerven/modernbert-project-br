@@ -1,7 +1,7 @@
 import os
 import logging
 import shutil
-
+from transformers import AutoTokenizer
 from src.brazilian_modernbert.configs import (
     CACHED_DATA_FOLDER,
     WORK_DIR,
@@ -10,6 +10,8 @@ from src.brazilian_modernbert.configs import (
     CONTEXT_SIZE,
     LOAD_AND_PREPROCESS_DATASET,
     TRAIN_TOKENIZER,
+    ALTERNATIVE_TOKENIZER,
+    USE_ALTERNATIVE_TOKENIZER,
 )
 
 import datasets
@@ -75,9 +77,14 @@ def main():
         )
         splitted_dataset = load_from_disk(split_save_path)
 
-    tokenizer = create_and_train_tokenizer(
-        VOCABULARY_SIZE, CONTEXT_SIZE, splitted_dataset, TRAIN_TOKENIZER
-    )
+    if USE_ALTERNATIVE_TOKENIZER:
+        tokenizer = AutoTokenizer.from_pretrained(ALTERNATIVE_TOKENIZER)
+    else:
+        tokenizer = create_and_train_tokenizer(
+            VOCABULARY_SIZE, CONTEXT_SIZE, splitted_dataset, TRAIN_TOKENIZER
+        )
+        
+        
 
     # evaluate_fertility(tokenizer, splitted_dataset)
 

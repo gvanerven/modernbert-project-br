@@ -5,8 +5,8 @@ from tqdm import tqdm
 import json
 
 # --- CONFIGURATION ---
-DATASET_PATH = "/work1/lgarcia/gvanerven/data/unpadded-tokenized-for-training/custom/vocab_size:32_768/context_size:1024"
-CONTEXT_LIMIT = 1024
+DATASET_PATH = "/work1/lgarcia/gvanerven/data/unpadded-tokenized-for-training/custom/vocab_size:32_768/context_size:512"
+CONTEXT_LIMIT = 512
 
 
 def analyze_dataset_full(path, limit):
@@ -103,6 +103,15 @@ def analyze_dataset_full(path, limit):
     print("Saving json count tokens")
     with open('/work1/lgarcia/gvanerven/data/unpadded-tokenized-for-training_custom_vocab_size_32_768_context_size_1024.json', 'w') as f:
         json.dump(tokens_count, f)
+
+    array_tokens_dict = np.array(list(tokens_count.values()), dtype=np.int64)
+    total_tokens_dict = array_tokens_dict.sum()
+    
+    assert total_tokens == total_tokens_dict, "Tokens count must be the same"
+
+    print(
+        f"Total [UNK] (id = 1):         {tokens_count['1']},  ({(tokens_count['1']/total_tokens_dict)*100}%)"
+    )
 
     print("=" * 50)
 
