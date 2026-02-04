@@ -53,20 +53,31 @@ def load_ccpt(cached_data_folder: str):
 
     return ccpt
 
+def load_tucano_wiki(cached_data_folder: str):
+    twiki = load_dataset(
+        "TucanoBR/wikipedia-PT",
+        split="train",
+        num_proc=max(1, cpu_count()-1),
+        #cache_dir=cached_data_folder
+    )
+
+    return twiki
+
 
 def load_all_datasets(cached_data_folder: str):
     logger.info("Loading all datasets")
 
     # wikipedia = load_wikipedia_pages(cached_data_folder)
     # brwac = load_brwac(cached_data_folder)
-    ccpt = load_ccpt(cached_data_folder)
+    # ccpt = load_ccpt(cached_data_folder)
+    twiki = load_tucano_wiki(cached_data_folder)
 
     # wikipedia = wikipedia.select_columns(["text"])
     # brwac = brwac.select_columns(["text"])
-    ccpt = ccpt.select_columns(["text"])
+    # ccpt = ccpt.select_columns(["text"])
 
     # raw_datasets = concatenate_datasets([wikipedia, brwac])
-    raw_datasets = ccpt
+    raw_datasets = twiki
     
     logger.info("Finished loading all datasets")
 

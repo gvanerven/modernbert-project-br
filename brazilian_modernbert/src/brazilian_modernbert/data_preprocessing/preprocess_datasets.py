@@ -6,6 +6,7 @@ from multiprocessing import cpu_count
 
 from src.brazilian_modernbert.utils.text_helper import (
     get_document_metadata_paragraphs,
+    get_document_metadata_paragraphs_spacy,
     get_document_metadata_entire_text,
 )
 
@@ -48,10 +49,12 @@ def preprocess_concatenated_dataset(data_path, dataset):
     logger.info("Preprocessing concatenated dataset")
 
     preprocessed_dataset = dataset.map(
-        get_document_metadata_paragraphs,
+        #get_document_metadata_paragraphs,
+        get_document_metadata_paragraphs_spacy,
         batched=True,
         remove_columns=["text"],
-        num_proc=max(1, cpu_count()-1),
+        num_proc=4,
+        #num_proc=max(1, cpu_count()-1),
     )
     # preprocessed_dataset = dataset.map(
     #     get_document_metadata_entire_text,

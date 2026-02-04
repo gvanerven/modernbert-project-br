@@ -3,11 +3,13 @@ import warnings
 import nltk
 from ftfy import fix_text
 from bs4 import BeautifulSoup, MarkupResemblesLocatorWarning
+from spacy.lang.pt import Portuguese
 
 
 warnings.filterwarnings("ignore", category=MarkupResemblesLocatorWarning)
 
-
+nlp = Portuguese()
+nlp.add_pipe("sentencizer")
 nltk.download("stopwords")
 stopwords = nltk.corpus.stopwords.words("portuguese")
 STOPWORDS_SET = set(nltk.corpus.stopwords.words("portuguese"))
@@ -27,6 +29,50 @@ def paragraph_to_document(example):
         list_doc.append(str_doc)
     return {"text": list_doc}
 
+
+def get_document_metadata_paragraphs_spacy(row):
+
+    list_paragraph = []
+    list_words = []
+    list_stopwords = []
+    list_average = []
+
+    for doc in row["text"]:
+        output = nlp(doc)
+
+        for pgraph in output.sents:
+            paragraph = pgraph.text
+            # strip whitespaces
+            paragraph = paragraph.strip()
+
+            # skip single or empty worded paragraphs
+            if len(paragraph.split()) < 2:
+                continue
+
+            # count how many stopwords are in the paragraph
+            stopwords_cnt = 0
+            for word in paragraph.split():
+                for stop in stopwords:
+                    if stop.casefold() == word.casefold():  # insensitive case
+                        stopwords_cnt += 1
+                        break  # count once and speed up everything
+
+            # count non whitespace characters
+            characters = 0
+            for word in paragraph.split():
+                characters += len(word)
+
+            list_paragraph.append(paragraph)
+            list_words.append(len(paragraph.split()))
+            list_stopwords.append(stopwords_cnt)
+            list_average.append(characters / len(paragraph.split()))
+
+    return {
+        "paragraphs": list_paragraph,
+        "num_words": list_words,
+        "stopwords": list_stopwords,
+        "average": list_average,
+    }
 
 def get_document_metadata_paragraphs(row):
 
@@ -69,7 +115,6 @@ def get_document_metadata_paragraphs(row):
         "stopwords": list_stopwords,
         "average": list_average,
     }
-
 
 def get_document_metadata_entire_text(row):
     """

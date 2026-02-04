@@ -99,6 +99,6 @@ def main():
 
 
 if __name__ == "__main__":
-    health_check()
+    #health_check()
 
     main()

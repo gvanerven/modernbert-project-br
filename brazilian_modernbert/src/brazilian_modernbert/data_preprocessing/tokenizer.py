@@ -281,7 +281,8 @@ def tokenize_dataset_with_padding(
         batched=True,
         batch_size=50_000,
         remove_columns=["text"],
-        num_proc=max(1, cpu_count()-1),
+        num_proc=4,
+        #num_proc=max(1, cpu_count()-1),
     )
 
     logger.info("Finished tokenizing dataset")
