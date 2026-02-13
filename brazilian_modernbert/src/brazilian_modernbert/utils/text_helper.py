@@ -38,7 +38,9 @@ def get_document_metadata_paragraphs_spacy(row):
     list_average = []
 
     for doc in row["text"]:
-        output = nlp(doc)
+        # limite do spacy 1_000_000
+        nlp.max_length = 100_000_000 
+        output = nlp(doc[:100_000_000])
 
         for pgraph in output.sents:
             paragraph = pgraph.text

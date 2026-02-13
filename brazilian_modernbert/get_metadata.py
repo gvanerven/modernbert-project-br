@@ -5,8 +5,8 @@ from tqdm import tqdm
 import json
 
 # --- CONFIGURATION ---
-DATASET_PATH = "/work1/lgarcia/gvanerven/data/unpadded-tokenized-for-training/custom/vocab_size:32_768/context_size:512"
-CONTEXT_LIMIT = 512
+DATASET_PATH = "/work1/lgarcia/gvanerven/data/unpadded-tokenized-for-training/custom/vocab_size:32_768/context_size:1024"
+CONTEXT_LIMIT = 1024
 
 
 def analyze_dataset_full(path, limit):

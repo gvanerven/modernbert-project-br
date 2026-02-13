@@ -3,10 +3,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-LOAD_AND_PREPROCESS_DATASET = True
+LOAD_AND_PREPROCESS_DATASET = False
 TRAIN_TOKENIZER = False
 
-WORK_DIR = '/home/gvanerven/code' #os.getenv("WORK")
+WORK_DIR = os.getenv("WORK")
 DATA_FOLDER = os.path.join(WORK_DIR, "data")
 CACHED_DATA_FOLDER = os.path.join(WORK_DIR, "data", "tmpdata")
 USE_ALTERNATIVE_TOKENIZER = False

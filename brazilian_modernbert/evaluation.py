@@ -52,7 +52,7 @@ class Config:
 
     TOKENIZED_DS_PATH = os.path.join(
         DATA_FOLDER,
-        f"unpadded-tokenized-for-training-test/custom/vocab_size:{VOCAB_SIZE:_}/context_size:{CONTEXT_SIZE}",
+        f"unpadded-tokenized-for-training/custom/vocab_size:{VOCAB_SIZE:_}/context_size:{CONTEXT_SIZE}",
     )
 
 
@@ -160,7 +160,7 @@ def run_mlm_test(tokenizer):
             tokenized_datasets = load_from_disk(Config.TOKENIZED_DS_PATH)
             # evaluation_dataset = tokenized_datasets
 
-            evaluation_dataset = tokenized_datasets.shuffle(seed=42).select(
+            evaluation_dataset = tokenized_datasets['test'].shuffle(seed=42).select(
                 range(100_000)
             )
             # Using your specific probability of 0.3
@@ -171,7 +171,7 @@ def run_mlm_test(tokenizer):
             eval_args = TrainingArguments(
                 output_dir="evaluating/mlm_test",
                 do_train=False,
-                per_device_eval_batch_size=16,
+                per_device_eval_batch_size=64,
                 dataloader_num_workers=8,
                 logging_dir="evaluating/evaluation-logs",
                 report_to=["tensorboard"],

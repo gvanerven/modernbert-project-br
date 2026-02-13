@@ -31,70 +31,9 @@
 
 #SBATCH -J resubmit-mblg    # Job name
 #SBATCH -o %x-output.%j     # Name of stdout output file (%j expands to jobId)
-#SBATCH -N 1                # Total number of nodes requested
+#SBATCH -N 6                # Total number of nodes requested
 #SBATCH -t 24:00:00         # Run time (hh:mm:ss)
 #SBATCH -p mi2104x          # Desired partition      
-
-MAX_ITERATIONS=24
-
-# ------------------------------------------------------------
-# END USER-EDITABLE SECTION
-# ------------------------------------------------------------
-
-CURRENT_JOB_ID="${SLURM_JOB_ID}"
-
-# Keep track of ITERATION number and export so it is available in subsequent jobs
-if [ -z "$ITERATION" ]; then
-    export ITERATION=1
-else
-    export ITERATION=$((ITERATION + 1))
-fi
-
-# We're on the first iteration of the auto resubmission
-if [ "$ITERATION" -eq 1 ]; then
-
-    export LAST_JOB_ID="${CURRENT_JOB_ID}"
-    echo "Submitting 2nd job."
-    NEXT_JOB_ID=$(sbatch --parsable --dependency=afternotok:${CURRENT_JOB_ID} $WORK/modernbert-project-br/scripts/auto_resubmit.sh)
-
-# We're on the 2nd through N-1 iteration
-elif [[ "$ITERATION" -gt 1 && "$ITERATION" -lt "$MAX_ITERATIONS" ]]; then
-
-    echo "ITERATION $ITERATION of $MAX_ITERATIONS."
-
-    LAST_JOB_EXIT_STATUS=$(sacct -X -n -o State -j ${LAST_JOB_ID} | xargs)
-
-    if [ "$LAST_JOB_EXIT_STATUS" == "TIMEOUT" ]; then
-
-        export LAST_JOB_ID="${CURRENT_JOB_ID}"
-        echo "Submitting next job."
-        NEXT_JOB_ID=$(sbatch --parsable --dependency=afternotok:${CURRENT_JOB_ID} $WORK/modernbert-project-br/scripts/auto_resubmit.sh)
-
-    else
-
-        echo "Last job did not exit with TIMEOUT."
-        echo "Last Job ID: ${LAST_JOB_ID}"
-        echo "Last Job Exit Status: ${LAST_JOB_EXIT_STATUS}"
-        echo "Exiting..."
-        exit 0
-
-    fi
-
-# Do not submit a new job if this is the final iteration
-elif [ "$ITERATION" -eq "$MAX_ITERATIONS" ]; then
-
-    echo "ITERATION $ITERATION of $MAX_ITERATIONS."
-    echo "No further jobs will be submitted."
-
-# ITERATION should not be greater than MAX_ITERATIONS or less than 1
-else
-
-    echo "ITERATION: $ITERATION"
-    echo "MAX_ITERATIONS $MAX_ITERATIONS"
-    echo "Something went wrong. Exiting..."
-    exit 1
-
-fi
 
 # ---------------------------------------------------------
 # BEGIN USER-EDITABLE SECTION
@@ -116,14 +55,17 @@ module load rocm/7.1.0
 source $WORK/bertx200/bin/activate 
 #
 rocm-smi
-accelerate launch --multi_gpu --num_processes=4 --num_machines=1 --dynamo_backend="no" --mixed_precision="bf16" $WORK/modernbert-project-br/scripts/train_entrypoint.py 
+export ACCELERATE_LOG_LEVEL=debug
+export NNODES=$SLURM_JOB_NUM_NODES
+export WORLD_SIZE=$(($NNODES * 4))
+export MASTER_PORT=24456
+
+ifconfig eth0 | sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){3}[0-9]*).*/\2/p' > main.node
+export MASTER_ADDR=$(<main.node)
+
+srun accelerate launch --multi_gpu --num_processes=$WORLD_SIZE --num_machines=$NNODES --dynamo_backend="no" --main_process_ip="$MASTER_ADDR" --main_process_port=$MASTER_PORT --machine_rank=$SLURM_NODEID --mixed_precision="bf16" $WORK/modernbert-project-br/scripts/train_entrypoint.py 
 #accelerate launch --num_processes=1 --num_machines=1 --dynamo_backend="no" --mixed_precision="bf16" $WORK/modernbert-project-br/scripts/train_entrypoint.py 
 
 # ---------------------------------------------------------
 # END USER-EDITABLE SECTION
 # ---------------------------------------------------------
-
-# If job step completes, cancel next job to break the cycle
-if [ -n "${NEXT_JOB_ID:-}" ]; then
-    scancel "$NEXT_JOB_ID"
-fi

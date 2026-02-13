@@ -1,6 +1,6 @@
 import os
 import torch
-from datasets import load_from_disk
+from datasets import load_from_disk, load_dataset
 from transformers import (
     ModernBertConfig,
     ModernBertForMaskedLM,
@@ -8,14 +8,15 @@ from transformers import (
     AutoTokenizer,
     Trainer,
     TrainingArguments,
+    EarlyStoppingCallback,
 )
 from transformers.trainer_utils import get_last_checkpoint
 
 from accelerate import Accelerator
-
+from multiprocessing import cpu_count
 
 def run_training():
-
+    print('Starting')
     accelerator = Accelerator()
 
     WORK_DIR = os.getenv("WORK")
@@ -30,18 +31,27 @@ def run_training():
     vocabulary_size = 32_768
     context_size = 1024
     tokenizer_name = f"tokenizers/custom/{vocabulary_size:_}"
-    model_name = f"Modern/large-classiccc-1024-unigram-32768-900ksteps"
+    model_name = f"Modern/large-classiccc-spacy-1024-unigram-32768-900ksteps"
 
     output_dir = f"training_test/{model_name}"
     os.makedirs(output_dir, exist_ok=True)
 
-    tokenized_datasets_name = os.path.join(
-        DATA_FOLDER,
-        f"unpadded-tokenized-for-training/custom/vocab_size:{vocabulary_size:_}/context_size:{context_size}",
-    )
-    tokenized_datasets = load_from_disk(tokenized_datasets_name)
-    training_dataset = tokenized_datasets['train']
+    #tokenized_datasets_name = os.path.join(
+    #    DATA_FOLDER,
+    #    f"unpadded-tokenized-for-training/custom/vocab_size:{vocabulary_size:_}/context_size:{context_size}",
+    #)
+    #tokenized_datasets = load_from_disk(tokenized_datasets_name)
+    #training_dataset = tokenized_datasets['train']
     # eval_dataset = tokenized_datasets["test"]
+
+    ds = load_dataset(
+        "unb-labia/CCCPT-unpadded-tokenized-ModBertBR-vs32Kmxlen1Kspacy",
+        split="train",
+        num_proc=max(1, cpu_count()-1),        
+    )
+
+    # separar por 10% do total do dataset
+    ds = ds.train_test_split(test_size=0.1)
 
     tokenizer = AutoTokenizer.from_pretrained(
         tokenizer_name, local_files_only=True, cache_dir=CACHED_DATA_FOLDER
@@ -52,7 +62,7 @@ def run_training():
         reference_compile=False,
         attn_implementation="flash_attention_2",
         vocab_size=vocabulary_size,
-        max_position_embeddings=1024,
+        max_position_embeddings=context_size,
     )
     config.vocab_size = vocabulary_size
     #config.max_position_embeddings = 1024
@@ -68,7 +78,7 @@ def run_training():
 
     model = ModernBertForMaskedLM(config=config)
     # Reinitialize weights
-    #model.apply(model._init_weights)
+    model.apply(model._init_weights)
     # NOTE: We do NOT call model.to("cuda") or model.half().
     # The Trainer, powered by Accelerate, will handle device placement and mixed precision.
 
@@ -76,13 +86,15 @@ def run_training():
         tokenizer=tokenizer, mlm=True, mlm_probability=0.3
     )
 
+    early_stopping = EarlyStoppingCallback(early_stopping_patience=4)
+
     training_args = TrainingArguments(
         output_dir=output_dir,
         overwrite_output_dir=False,
-        max_steps=900_000,
-        per_device_train_batch_size=256,
-        gradient_accumulation_steps=1,
-        dataloader_num_workers=128,
+        max_steps=2_000_000,
+        per_device_train_batch_size=32,
+        gradient_accumulation_steps=2,
+        dataloader_num_workers=16,
         logging_strategy="steps",
         logging_first_step=True,
         logging_steps=1_000,
@@ -91,12 +103,23 @@ def run_training():
         save_total_limit=5,
         bf16=True,
         report_to="tensorboard",
+
+        gradient_checkpointing=False,
+        torch_compile=True,
+        
+        per_device_eval_batch_size=32,
+        evaluation_strategy="steps",
+        eval_steps=100_000, # 5% dos total de seps
+        load_best_model_at_end=True, 
+        metric_for_best_model="overall_f1",
     )
 
     trainer = Trainer(
         model=model,
         args=training_args,
-        train_dataset=training_dataset,
+        train_dataset=ds['train'],
+        eval_dataset=ds['test'],
+        callbacks=[early_stopping],
         data_collator=data_collator,
     )
 
@@ -113,7 +136,7 @@ def run_training():
         trainer.train()
     accelerator.print("Training complete!")
 
-    trainer.save_model("saved_models/Modern/BERTomelo-ModernBERT-Large-900steps-1k")
+    trainer.save_model("saved_models/Modern/BERTomelo-ModernBERT-Large-900steps-1k-spacy")
 
 if __name__ == "__main__":
     run_training()

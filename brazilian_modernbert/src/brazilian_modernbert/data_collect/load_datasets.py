@@ -63,6 +63,15 @@ def load_tucano_wiki(cached_data_folder: str):
 
     return twiki
 
+def load_CCCPT_spacy(cached_data_folder: str):
+    cccspacy = load_dataset(
+        "unb-labia/CCCPT-unpadded-tokenized-ModBertBR-vs32Kmxlen1Kspacy",
+        #split="train",
+        num_proc=max(1, cpu_count()-1),
+        #cache_dir=cached_data_folder
+    )
+
+    return cccspacy
 
 def load_all_datasets(cached_data_folder: str):
     logger.info("Loading all datasets")
@@ -70,14 +79,14 @@ def load_all_datasets(cached_data_folder: str):
     # wikipedia = load_wikipedia_pages(cached_data_folder)
     # brwac = load_brwac(cached_data_folder)
     # ccpt = load_ccpt(cached_data_folder)
-    twiki = load_tucano_wiki(cached_data_folder)
+    # twiki = load_tucano_wiki(cached_data_folder)
 
     # wikipedia = wikipedia.select_columns(["text"])
     # brwac = brwac.select_columns(["text"])
-    # ccpt = ccpt.select_columns(["text"])
+    ccpt = ccpt.select_columns(["text"])
 
     # raw_datasets = concatenate_datasets([wikipedia, brwac])
-    raw_datasets = twiki
+    raw_datasets = ccpt
     
     logger.info("Finished loading all datasets")
 

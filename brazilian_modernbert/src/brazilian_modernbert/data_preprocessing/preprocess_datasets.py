@@ -53,8 +53,7 @@ def preprocess_concatenated_dataset(data_path, dataset):
         get_document_metadata_paragraphs_spacy,
         batched=True,
         remove_columns=["text"],
-        num_proc=4,
-        #num_proc=max(1, cpu_count()-1),
+        num_proc=max(1, cpu_count()-1),
     )
     # preprocessed_dataset = dataset.map(
     #     get_document_metadata_entire_text,

@@ -281,15 +281,14 @@ def tokenize_dataset_with_padding(
         batched=True,
         batch_size=50_000,
         remove_columns=["text"],
-        num_proc=4,
-        #num_proc=max(1, cpu_count()-1),
+        num_proc=max(1, cpu_count()-1),
     )
 
     logger.info("Finished tokenizing dataset")
 
     tokenized_datasets_name = os.path.join(
         data_folder,
-        f"unpadded-tokenized-for-training/custom/vocab_size:{vocabulary_size:_}/context_size:{context_size}",
+        f"unpadded-tokenized-for-training/custom_spacy/vocab_size:{vocabulary_size:_}/context_size:{context_size}",
     )
     tokenized_datasets.save_to_disk(tokenized_datasets_name)
 
