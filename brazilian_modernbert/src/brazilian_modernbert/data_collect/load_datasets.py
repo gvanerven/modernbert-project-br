@@ -2,7 +2,7 @@ import logging
 from multiprocessing import cpu_count
 
 import transformers
-from datasets import load_dataset, concatenate_datasets
+from datasets import load_dataset, concatenate_datasets, DatasetDict
 
 from src.brazilian_modernbert.utils.text_helper import paragraph_to_document
 
@@ -75,18 +75,25 @@ def load_CCCPT_spacy(cached_data_folder: str):
 
 def load_all_datasets(cached_data_folder: str):
     logger.info("Loading all datasets")
+    ccpt = load_ccpt(cached_data_folder)
+    ccpt = ccpt.select_columns(["text"])
+    ccpt_train_testvalid = ccpt.train_test_split(test_size=0.005, shuffle=True, seed=42)
+    ccpttest_valid = ccpt_train_testvalid['test'].train_test_split(test_size=0.5, shuffle=True, seed=42)
+
+    train_test_valid_dataset = DatasetDict({
+        'train': ccpt_train_testvalid['train'],
+        'test': ccpttest_valid['test'],
+        'validation': ccpttest_valid['train'] # The 'train' split of the second split is the validation set
+    })
 
     # wikipedia = load_wikipedia_pages(cached_data_folder)
     # brwac = load_brwac(cached_data_folder)
-    # ccpt = load_ccpt(cached_data_folder)
-    # twiki = load_tucano_wiki(cached_data_folder)
 
     # wikipedia = wikipedia.select_columns(["text"])
     # brwac = brwac.select_columns(["text"])
-    ccpt = ccpt.select_columns(["text"])
 
     # raw_datasets = concatenate_datasets([wikipedia, brwac])
-    raw_datasets = ccpt
+    raw_datasets = train_test_valid_dataset
     
     logger.info("Finished loading all datasets")
 
