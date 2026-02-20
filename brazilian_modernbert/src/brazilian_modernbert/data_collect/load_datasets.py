@@ -77,7 +77,7 @@ def load_all_datasets(cached_data_folder: str):
     logger.info("Loading all datasets")
     ccpt = load_ccpt(cached_data_folder)
     ccpt = ccpt.select_columns(["text"])
-    ccpt_train_testvalid = ccpt.train_test_split(test_size=0.005, shuffle=True, seed=42)
+    ccpt_train_testvalid = ccpt.train_test_split(test_size=0.2, shuffle=True, seed=42)
     ccpttest_valid = ccpt_train_testvalid['test'].train_test_split(test_size=0.5, shuffle=True, seed=42)
 
     train_test_valid_dataset = DatasetDict({
