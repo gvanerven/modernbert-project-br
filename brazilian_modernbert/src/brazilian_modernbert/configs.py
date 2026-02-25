@@ -3,7 +3,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-LOAD_AND_PREPROCESS_DATASET = True
+LOAD_AND_PREPROCESS_DATASET = False
 TRAIN_TOKENIZER = False
 
 WORK_DIR = os.getenv("WORK")

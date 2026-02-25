@@ -31,7 +31,7 @@ def run_training():
     vocabulary_size = 32_768
     context_size = 1024
     tokenizer_name = f"tokenizers/custom/{vocabulary_size:_}"
-    model_name = f"Modern/large-classiccc-spacy-1024-unigram-32768-900ksteps"
+    model_name = f"Modern/large-classiccc-erlstp-1024-unigram-32768-900ksteps"
 
     output_dir = f"training_test/{model_name}"
     os.makedirs(output_dir, exist_ok=True)
@@ -45,13 +45,13 @@ def run_training():
     # eval_dataset = tokenized_datasets["test"]
 
     ds = load_dataset(
-        "unb-labia/CCCPT-unpadded-tokenized-ModBertBR-vs32Kmxlen1Kspacy",
-        split="train",
+        "unb-labia/CCCPT-unpadded-tokenized-ModBertBR-vs32Kmxlen1K",
+        split=["train","test"],
         num_proc=max(1, cpu_count()-1),        
     )
 
-    # separar por 10% do total do dataset
-    ds = ds.train_test_split(test_size=0.1)
+    train_ds = ds[0]
+    test_ds = ds[1]
 
     tokenizer = AutoTokenizer.from_pretrained(
         tokenizer_name, local_files_only=True, cache_dir=CACHED_DATA_FOLDER
@@ -62,10 +62,9 @@ def run_training():
         reference_compile=False,
         attn_implementation="flash_attention_2",
         vocab_size=vocabulary_size,
-        max_position_embeddings=context_size,
     )
     config.vocab_size = vocabulary_size
-    #config.max_position_embeddings = 1024
+    config.max_position_embeddings = context_size
 
     config.global_rope_theta = 10000.0
 
@@ -88,27 +87,29 @@ def run_training():
 
     early_stopping = EarlyStoppingCallback(early_stopping_patience=4)
 
+    random_eval_dataset = test_ds.shuffle(seed=42).select(range(500_000))
+
     training_args = TrainingArguments(
         output_dir=output_dir,
         overwrite_output_dir=False,
         max_steps=2_000_000,
-        per_device_train_batch_size=32,
+        per_device_train_batch_size=64,
         gradient_accumulation_steps=2,
-        dataloader_num_workers=16,
+        dataloader_num_workers=32,
         logging_strategy="steps",
         logging_first_step=True,
         logging_steps=1_000,
         save_strategy="steps",
-        save_steps=1_000,
+        save_steps=100_000,
         save_total_limit=5,
         bf16=True,
-        report_to="tensorboard",
+        report_to=["tensorboard", "mlflow"],
 
         gradient_checkpointing=False,
         torch_compile=True,
         
         per_device_eval_batch_size=32,
-        evaluation_strategy="steps",
+        eval_strategy="steps",
         eval_steps=100_000, # 5% dos total de seps
         load_best_model_at_end=True, 
         metric_for_best_model="overall_f1",
@@ -117,8 +118,8 @@ def run_training():
     trainer = Trainer(
         model=model,
         args=training_args,
-        train_dataset=ds['train'],
-        eval_dataset=ds['test'],
+        train_dataset=train_ds,
+        eval_dataset=random_eval_dataset,
         callbacks=[early_stopping],
         data_collator=data_collator,
     )
@@ -136,7 +137,7 @@ def run_training():
         trainer.train()
     accelerator.print("Training complete!")
 
-    trainer.save_model("saved_models/Modern/BERTomelo-ModernBERT-Large-900steps-1k-spacy")
+    trainer.save_model("saved_models/Modern/BERTomelo-ModernBERT-Large-900steps-1k-erlstp")
 
 if __name__ == "__main__":
     run_training()

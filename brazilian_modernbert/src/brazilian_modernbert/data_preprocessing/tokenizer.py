@@ -288,7 +288,7 @@ def tokenize_dataset_with_padding(
 
     tokenized_datasets_name = os.path.join(
         data_folder,
-        f"unpadded-tokenized-for-training/custom_spacy/vocab_size:{vocabulary_size:_}/context_size:{context_size}",
+        f"unpadded-tokenized-for-training/custom/vocab_size:{vocabulary_size:_}/context_size:{context_size}",
     )
     tokenized_datasets.save_to_disk(tokenized_datasets_name)
 
