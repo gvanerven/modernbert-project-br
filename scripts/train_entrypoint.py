@@ -87,7 +87,7 @@ def run_training():
 
     early_stopping = EarlyStoppingCallback(early_stopping_patience=4)
 
-    random_eval_dataset = test_ds.shuffle(seed=42).select(range(1_000_000))
+    random_eval_dataset = test_ds.shuffle(seed=42).select(range(1_500_000))
 
     training_args = TrainingArguments(
         output_dir=output_dir,
