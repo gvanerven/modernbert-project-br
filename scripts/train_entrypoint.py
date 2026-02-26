@@ -46,7 +46,7 @@ def run_training():
 
     ds = load_dataset(
         "unb-labia/CCCPT-unpadded-tokenized-ModBertBR-vs32Kmxlen1K",
-        split=["train","test"],
+        split=["train","validation"],
         num_proc=max(1, cpu_count()-1),        
     )
 
@@ -87,20 +87,20 @@ def run_training():
 
     early_stopping = EarlyStoppingCallback(early_stopping_patience=4)
 
-    random_eval_dataset = test_ds.shuffle(seed=42).select(range(500_000))
+    random_eval_dataset = test_ds.shuffle(seed=42).select(range(1_000_000))
 
     training_args = TrainingArguments(
         output_dir=output_dir,
         overwrite_output_dir=False,
         max_steps=2_000_000,
-        per_device_train_batch_size=64,
-        gradient_accumulation_steps=2,
+        per_device_train_batch_size=256,
+        gradient_accumulation_steps=1,
         dataloader_num_workers=32,
         logging_strategy="steps",
         logging_first_step=True,
         logging_steps=1_000,
         save_strategy="steps",
-        save_steps=100_000,
+        save_steps=10_000,
         save_total_limit=5,
         bf16=True,
         report_to=["tensorboard", "mlflow"],
@@ -108,11 +108,11 @@ def run_training():
         gradient_checkpointing=False,
         torch_compile=True,
         
-        per_device_eval_batch_size=32,
+        per_device_eval_batch_size=256,
         eval_strategy="steps",
-        eval_steps=100_000, # 5% dos total de seps
+        eval_steps=10_000, # 5% dos total de seps
         load_best_model_at_end=True, 
-        metric_for_best_model="overall_f1",
+        metric_for_best_model="eval_loss",
     )
 
     trainer = Trainer(
