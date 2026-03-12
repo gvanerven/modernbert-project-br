@@ -29,7 +29,7 @@ def run_training():
     accelerator.print(f"Working directory: {os.getcwd()}")
 
     vocabulary_size = 32_768
-    context_size = 1024
+    context_size = 768
     tokenizer_name = f"tokenizers/custom/{vocabulary_size:_}"
     model_name = f"Modern/large-classiccc-erlstp-1024-unigram-32768-900ksteps"
 
@@ -58,7 +58,7 @@ def run_training():
     )
 
     config = ModernBertConfig.from_pretrained(
-        "answerdotai/ModernBERT-large",
+        "jhu-clsp/mmBERT-base",
         reference_compile=False,
         attn_implementation="flash_attention_2",
         vocab_size=vocabulary_size,

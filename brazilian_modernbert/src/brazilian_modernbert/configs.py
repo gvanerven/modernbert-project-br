@@ -11,7 +11,7 @@ DATA_FOLDER = os.path.join(WORK_DIR, "data")
 CACHED_DATA_FOLDER = os.path.join(WORK_DIR, "data", "tmpdata")
 USE_ALTERNATIVE_TOKENIZER = False
 ALTERNATIVE_TOKENIZER = "neuralmind/bert-large-portuguese-cased"
-
+BASE_MULTILANG_MODEL = "jhu-clsp/mmBERT-base"
 
 VOCABULARY_SIZE = 32_768
 CONTEXT_SIZE = 1024

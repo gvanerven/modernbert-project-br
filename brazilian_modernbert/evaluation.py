@@ -38,7 +38,7 @@ class Config:
     # Model & Tokenizer Paths
     TOKENIZER_PATH = "/work1/lgarcia/gvanerven/tokenizers/custom/32_768"
     # Base checkpoint for fine-tuning
-    BASE_MODEL_PATH = "/work1/lgarcia/gvanerven/training_test/Modern/large-classiccc-1024-unigram-32768-900ksteps/checkpoint-900000"
+    BASE_MODEL_PATH = "/work1/lgarcia/gvanerven/training_test/Modern/large-classiccc-erlstp-1024-unigram-32768-900ksteps/checkpoint-2000000"
 
     # Dataset Paths
 
@@ -154,15 +154,22 @@ def run_mlm_test(tokenizer):
     # Quantitative Evaluation
     print("\nQuantitative Evaluation (Test Set)")
 
-    if os.path.exists(Config.TOKENIZED_DS_PATH):
+    if not os.path.exists(Config.TOKENIZED_DS_PATH):
         print(f"Loading dataset from: {Config.TOKENIZED_DS_PATH}")
         try:
-            tokenized_datasets = load_from_disk(Config.TOKENIZED_DS_PATH)
+            #tokenized_datasets = load_from_disk(Config.TOKENIZED_DS_PATH)
             # evaluation_dataset = tokenized_datasets
 
-            evaluation_dataset = tokenized_datasets['test'].shuffle(seed=42).select(
-                range(100_000)
+            #evaluation_dataset = tokenized_datasets['test'].shuffle(seed=42).select(
+            #    range(100_000)
+            #)
+
+            evaluation_dataset = load_dataset(
+                "unb-labia/CCCPT-unpadded-tokenized-ModBertBR-vs32Kmxlen1K",
+                split="test",
+                num_proc=max(1, cpu_count()-1),        
             )
+            evaluation_dataset = evaluation_dataset.shuffle(seed=42).select(range(3_600_000))
             # Using your specific probability of 0.3
             data_collator = DataCollatorForLanguageModeling(
                 tokenizer=tokenizer, mlm=True, mlm_probability=0.3
@@ -171,10 +178,10 @@ def run_mlm_test(tokenizer):
             eval_args = TrainingArguments(
                 output_dir="evaluating/mlm_test",
                 do_train=False,
-                per_device_eval_batch_size=64,
-                dataloader_num_workers=8,
+                per_device_eval_batch_size=192,
+                dataloader_num_workers=32,
                 logging_dir="evaluating/evaluation-logs",
-                report_to=["tensorboard"],
+                report_to=["tensorboard", "mlflow"],
                 fp16=False,
                 bf16=True,
             )
@@ -296,7 +303,7 @@ def run_ner(tokenizer):
         load_best_model_at_end=True,
         metric_for_best_model="overall_f1",
         greater_is_better=True,
-        report_to=["tensorboard"],
+        report_to=["tensorboard", "mlflow"],
     )
 
     optimizer = AdamW(
@@ -373,7 +380,7 @@ def run_rte(tokenizer):
         load_best_model_at_end=True,
         metric_for_best_model="macro_f1",
         greater_is_better=True,
-        report_to=["tensorboard"],
+        report_to=["tensorboard", "mlflow"],
     )
 
     trainer = Trainer(
@@ -431,7 +438,7 @@ def run_sts(tokenizer):
         load_best_model_at_end=True,
         metric_for_best_model="mse",
         greater_is_better=False,
-        report_to=["tensorboard"],
+        report_to=["tensorboard", "mlflow"],
     )
 
     optimizer = AdamW(
