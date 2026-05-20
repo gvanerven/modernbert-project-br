@@ -3,6 +3,9 @@ import logging
 import nltk
 from datasets import DatasetDict
 from multiprocessing import cpu_count
+import numpy as np
+import math
+from datasets import concatenate_datasets
 
 from src.brazilian_modernbert.utils.text_helper import (
     get_document_metadata_paragraphs,
@@ -31,12 +34,35 @@ def clean_for_first_phase(dataset):
 
 
 def clean_for_second_phase(dataset):
-    cleaned_dataset = dataset.filter(
-        lambda example: example["num_words"] >= 100
+    # Data Engineering for Scaling Language Models to 128K Context https://arxiv.org/pdf/2402.10171
+    # first phase has 44% of the initial dataset size
+    cleaned_dataset_under_1024 = dataset["train"].filter(
+        lambda example: example["num_words"] >= 20 # example["num_words"] >= 100 # mantendo dist inicial
+        and example["num_words"] <= 1024
         and example["stopwords"] >= 2
         and example["average"] >= 2
         and example["average"] <= 15
     )
+
+    len_dataset_u1024 = len(cleaned_dataset_under_1024)
+
+    s_size = math.ceil(len_dataset_u1024*0.025)
+
+    indices_under_1024 = np.random.choice(len(cleaned_dataset_under_1024), size=s_size, replace=False)
+
+    cleaned_dataset_over_1024 = dataset["train"].filter(
+        lambda example: example["num_words"] > 1024
+    )
+
+    #0.025 = 0.44
+    #x = 0.56
+    x = (0.56*0.025)/0.44
+
+    len_dataset_o1024 = len(dataset)
+
+    indices_over_1024 = np.random.choice(len(cleaned_dataset_over_1024), size=math.ceil(len_dataset_o1024*x), replace=True)
+
+    cleaned_dataset = concatenate_datasets([cleaned_dataset_under_1024.select(indices_under_1024), cleaned_dataset_over_1024.select(indices_over_1024)])
 
     cleaned_dataset = cleaned_dataset.remove_columns(
         [col for col in cleaned_dataset.column_names if col != "text"]
@@ -47,26 +73,27 @@ def clean_for_second_phase(dataset):
 def preprocess_concatenated_dataset(data_path, dataset):
     logger.info("Preprocessing concatenated dataset")
 
-    preprocessed_dataset = dataset['train'].map(
-        get_document_metadata_paragraphs,
+    #preprocessed_dataset = dataset['train'].map(
+    #    get_document_metadata_paragraphs,
+    #    batched=True,
+    #    remove_columns=["text"],
+    #    num_proc=max(1, cpu_count()-1),
+    #)
+    preprocessed_dataset = dataset.map(
+        get_document_metadata_entire_text,
         batched=True,
-        remove_columns=["text"],
+        #remove_columns=["text"],
         num_proc=max(1, cpu_count()-1),
     )
-    # preprocessed_dataset = dataset.map(
-    #     get_document_metadata_entire_text,
-    #     batched=True,
-    #     remove_columns=["text"],
-    #     num_proc=cpu_count(),
-    # )
 
-    preprocessed_dataset = preprocessed_dataset.rename_column(
-        "paragraphs", "text"
-    )
+    #preprocessed_dataset = preprocessed_dataset.rename_column(
+    #    "paragraphs", "text"
+    #)
 
-    logger.info("Cleaning for first training phase")
-    cleaned_for_fist_phase = clean_for_first_phase(preprocessed_dataset)
-    # cleaned_for_second_phase = clean_for_second_phase(preprocessed_dataset)
+    #logger.info("Cleaning for first training phase")
+    logger.info("Cleaning for second training phase")
+    # cleaned_for_fist_phase = clean_for_first_phase(preprocessed_dataset)
+    cleaned_for_second_phase = clean_for_second_phase(preprocessed_dataset)
 
     #logger.info("Splitting dataset")
     #split_dataset = cleaned_for_fist_phase.train_test_split(
@@ -77,7 +104,7 @@ def preprocess_concatenated_dataset(data_path, dataset):
     # )
 
     split_dataset = DatasetDict({
-        'train': cleaned_for_fist_phase,
+        'train': cleaned_for_second_phase,
         'test': dataset['test'],
         'validation': dataset['validation'] # The 'train' split of the second split is the validation set
     })

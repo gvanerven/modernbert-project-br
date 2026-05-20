@@ -14,9 +14,8 @@ import evaluate
 from datasets import load_from_disk, load_dataset
 from transformers import (
     AutoTokenizer,
-    ModernBertForMaskedLM,
-    ModernBertForTokenClassification,
-    ModernBertForSequenceClassification,
+    AutoModelForTokenClassification,
+    AutoModelForSequenceClassification,
     DataCollatorForLanguageModeling,
     DataCollatorForTokenClassification,
     Trainer,
@@ -35,13 +34,15 @@ class Config:
     DATA_FOLDER = os.path.join(WORK_DIR, "data")
     CACHED_DATA_FOLDER = os.path.join(WORK_DIR, "cached_data")
 
+    MODEL_ID = "PORTULAN/albertina-900m-portuguese-ptbr-encoder"
+
     # Model & Tokenizer Paths
-    TOKENIZER_PATH = "/work1/lgarcia/gvanerven/tokenizers/custom/32_768"
+    #TOKENIZER_PATH = "/work1/lgarcia/gvanerven/tokenizers/custom/32_768"
     #TOKENIZER_PATH = "/work1/lgarcia/gvanerven/tokenizers/MM/jhu-clsp/mmBERT-base/256000"
     # Base checkpoint for fine-tuning
     #BASE_MODEL_PATH = "/work1/lgarcia/gvanerven/training_test/Modern/large-classiccc-erlstp-1024-unigram-32768-900ksteps/checkpoint-2000000"
     #BASE_MODEL_PATH = "/work1/lgarcia/gvanerven/training_test/Modern/jhu-clsp/mmBERT-base-freeze-finetune-ptbr-exp/checkpoint-500000"
-    BASE_MODEL_PATH = "/work1/lgarcia/gvanerven/saved_models/Modern/BERTomelo-ModernBERT-Base"
+    #BASE_MODEL_PATH = "/work1/lgarcia/gvanerven/saved_models/Modern/BERTomelo-ModernBERT-Base"
 
     # Dataset Paths
 
@@ -49,21 +50,21 @@ class Config:
     ASSIN2_PATH = "nilc-nlp/assin2"
 
     # Hyperparameters
-    CONTEXT_SIZE = 1024  # Reduced from 1024 for downstream tasks usually, or keep 1024 if needed
-    VOCAB_SIZE = 32_768
+    CONTEXT_SIZE = 128  # Reduced from 1024 for downstream tasks usually, or keep 1024 if needed
+    #VOCAB_SIZE = 32_768
     SEED = 42
 
-    TOKENIZED_DS_PATH = os.path.join(
-        DATA_FOLDER,
-        f"unpadded-tokenized-for-training/custom/vocab_size:{VOCAB_SIZE:_}/context_size:{CONTEXT_SIZE}",
-    )
+    #TOKENIZED_DS_PATH = os.path.join(
+    #    DATA_FOLDER,
+    #    f"unpadded-tokenized-for-training/custom/vocab_size:{VOCAB_SIZE:_}/context_size:{CONTEXT_SIZE}",
+    #)
 
 
 def setup_environment():
     """Sets up OS environment variables."""
     os.environ["HF_HOME"] = Config.CACHED_DATA_FOLDER
-    os.environ["TRITON_HIP_LLD_PATH"] = "/opt/rocm-7.1.0/lib/llvm/bin/ld.lld"
-    #os.environ["TRITON_HIP_LLD_PATH"] = "/opt/rocm-6.4.1/lib/llvm/bin/ld.lld"
+    #os.environ["TRITON_HIP_LLD_PATH"] = "/opt/rocm-7.1.0/lib/llvm/bin/ld.lld"
+    os.environ["TRITON_HIP_LLD_PATH"] = "/opt/rocm-6.4.1/lib/llvm/bin/ld.lld"
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     # Disable tokenizers parallelism to avoid deadlocks in dataloaders
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -151,98 +152,6 @@ def compute_mlm_metrics(eval_pred):
     return {"accuracy": accuracy}
 
 
-# MLM Testing
-def run_mlm_test(tokenizer):
-    model = ModernBertForMaskedLM.from_pretrained(Config.BASE_MODEL_PATH)
-    model.to("cuda")
-
-    # Quantitative Evaluation
-    print("\nQuantitative Evaluation (Test Set)")
-
-    if not os.path.exists(Config.TOKENIZED_DS_PATH):
-        print(f"Loading dataset from: {Config.TOKENIZED_DS_PATH}")
-        try:
-            #tokenized_datasets = load_from_disk(Config.TOKENIZED_DS_PATH)
-            # evaluation_dataset = tokenized_datasets
-
-            #evaluation_dataset = tokenized_datasets['test'].shuffle(seed=42).select(
-            #    range(100_000)
-            #)
-
-            evaluation_dataset = load_dataset(
-                "unb-labia/CCCPT-unpadded-tokenized-ModBertBR-vs32Kmxlen1K",
-                split="test",
-                num_proc=max(1, cpu_count()-1),        
-            )
-            evaluation_dataset = evaluation_dataset.shuffle(seed=42).select(range(3_600_000))
-            # Using your specific probability of 0.3
-            data_collator = DataCollatorForLanguageModeling(
-                tokenizer=tokenizer, mlm=True, mlm_probability=0.3
-            )
-
-            eval_args = TrainingArguments(
-                output_dir="evaluating/mlm_test",
-                do_train=False,
-                per_device_eval_batch_size=64,
-                dataloader_num_workers=8,
-                logging_dir="evaluating/evaluation-logs",
-                report_to=["tensorboard", "mlflow"],
-                fp16=False,
-                bf16=True,
-            )
-
-            evaluator = Trainer(
-                model=model,
-                args=eval_args,
-                eval_dataset=evaluation_dataset,
-                data_collator=data_collator,
-                compute_metrics=compute_mlm_metrics,
-                preprocess_logits_for_metrics=preprocess_logits_for_metrics,
-            )
-
-            print(f"Evaluating on {len(evaluation_dataset)} samples...")
-            eval_results = evaluator.evaluate()
-
-            print("Evaluation Results:", eval_results)
-
-            # Calculate Perplexity manually for clarity
-            if "eval_loss" in eval_results:
-                perplexity = math.exp(eval_results["eval_loss"])
-                print(f"Perplexity: {perplexity:.4f}")
-
-        except Exception as e:
-            print(f"Failed to load or evaluate dataset: {e}")
-    else:
-        print(
-            f"Warning: Tokenized dataset not found at {Config.TOKENIZED_DS_PATH}. Skipping quantitative eval."
-        )
-
-    # Qualitative Prediction (Fill-Mask)
-    print("\n>>> Phase 2: Qualitative Prediction (Fill-Mask)")
-    fill_mask = pipeline(
-        "fill-mask", model=model, tokenizer=tokenizer, device=0
-    )
-
-    test_sentences = [
-        "Eu não entendi [MASK], como proceder.",
-        "Atiraram o pau no [MASK]",
-        "Essa frase tem [MASK] tokens, portanto ele vai gerar dois [MASK]",
-    ]
-
-    for sent in test_sentences:
-        print(f"\nInput: {sent}")
-        res = fill_mask(sent)
-
-        # Handle cases where multiple masks create list of lists
-        if isinstance(res, list) and len(res) > 0 and isinstance(res[0], list):
-            for i, r in enumerate(res):
-                top_token = r[0]["token_str"]
-                print(f"  Mask {i+1}: {top_token} (conf: {r[0]['score']:.2f})")
-        elif isinstance(res, list):
-            top_token = res[0]["token_str"]
-            print(f"  Prediction: {top_token} (conf: {res[0]['score']:.2f})")
-
-
 # NER
 def run_ner(tokenizer):
     print("\n--- Running NER Fine-tuning ---")
@@ -285,16 +194,15 @@ def run_ner(tokenizer):
         ["id", "tokens", "ner_tags"]
     )
 
-    model = ModernBertForTokenClassification.from_pretrained(
-        Config.BASE_MODEL_PATH,
+    model = AutoModelForTokenClassification.from_pretrained(
+        Config.MODEL_ID,
         num_labels=len(label_list),
         id2label=id2label,
         label2id=label2id,
     )
 
     args = TrainingArguments(
-        #output_dir=f"trained/NER/modern-bert-ner",
-        output_dir=f"trained/NER/jhu-clsp/mmBERT-base-ft",
+        output_dir=f"trained/NER/{Config.MODEL_ID}-ner",
         max_steps=3000,
         per_device_train_batch_size=4,
         per_device_eval_batch_size=32,
@@ -367,13 +275,12 @@ def run_rte(tokenizer):
     )
     encoded_dataset.set_format("torch")
 
-    model = ModernBertForSequenceClassification.from_pretrained(
-        Config.BASE_MODEL_PATH, num_labels=2
+    model = AutoModelForSequenceClassification.from_pretrained(
+        Config.MODEL_ID, num_labels=2
     )
 
     args = TrainingArguments(
-        #output_dir=f"trained/RTE/modern-bert-rte",
-        output_dir=f"trained/RTE/jhu-clsp/mmBERT-base-ft",
+        output_dir=f"trained/RTE/{Config.MODEL_ID}-rte",
         max_steps=10000,
         per_device_train_batch_size=4,
         per_device_eval_batch_size=4,
@@ -426,13 +333,12 @@ def run_sts(tokenizer):
     )
     encoded_dataset.set_format("torch")
 
-    model = ModernBertForSequenceClassification.from_pretrained(
-        Config.BASE_MODEL_PATH, num_labels=1
+    model = AutoModelForSequenceClassification.from_pretrained(
+        Config.MODEL_ID, num_labels=1
     )
 
     args = TrainingArguments(
-        #output_dir=f"trained/STS/modern-bert-sts",
-        output_dir=f"trained/STS/jhu-clsp/mmBERT-base-ft",
+        output_dir=f"trained/STS/{Config.MODEL_ID}-sts",
         max_steps=5000,
         per_device_train_batch_size=4,
         per_device_eval_batch_size=4,
@@ -483,30 +389,27 @@ if __name__ == "__main__":
     setup_environment()
 
     parser = argparse.ArgumentParser(
-        description="ModernBERT Fine-tuning Pipeline"
+        description=f"{Config.MODEL_ID} Fine-tuning Pipeline"
     )
     parser.add_argument(
-        "task", choices=["mlm", "ner", "rte", "sts"], help="Task to execute"
+        "task", choices=["ner", "rte", "sts"], help="Task to execute"
     )
     args = parser.parse_args()
 
     # Load tokenizer once
     try:
         tokenizer = AutoTokenizer.from_pretrained(
-            Config.TOKENIZER_PATH,
-            local_files_only=True,
+            Config.MODEL_ID,
             cache_dir=Config.CACHED_DATA_FOLDER,
         )
     except OSError:
         print(
-            f"Error: Tokenizer not found at {Config.TOKENIZER_PATH}. Check path."
+            f"Error: Tokenizer not found at {Config.MODEL_ID}. Check path."
         )
         sys.exit(1)
 
     # Route to task
-    if args.task == "mlm":
-        run_mlm_test(tokenizer)
-    elif args.task == "ner":
+    if args.task == "ner":
         run_ner(tokenizer)
     elif args.task == "rte":
         run_rte(tokenizer)

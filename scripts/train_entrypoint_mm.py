@@ -1,6 +1,6 @@
 import os
 import torch
-from datasets import load_from_disk, load_dataset
+from datasets import load_dataset
 from transformers import (
     ModernBertConfig,
     ModernBertForMaskedLM,
@@ -15,12 +15,17 @@ from transformers.trainer_utils import get_last_checkpoint
 from accelerate import Accelerator
 from multiprocessing import cpu_count
 
+
 def run_training():
     print('Starting')
     accelerator = Accelerator()
 
+    BASE_MULTILANG_MODEL = "jhu-clsp/mmBERT-base" 
+    TOKNZ_DIR_COMPL = f"{BASE_MULTILANG_MODEL}/256000/"
+    
+
     WORK_DIR = os.getenv("WORK")
-    DATA_FOLDER = os.path.join(WORK_DIR, "data")
+    #DATA_FOLDER = os.path.join(WORK_DIR, "data")
     CACHED_DATA_FOLDER = os.path.join(WORK_DIR, "cached_data")
     os.environ["HF_HOME"] = CACHED_DATA_FOLDER
     os.environ["TRITON_HIP_LLD_PATH"] = "/opt/rocm-7.1.0/lib/llvm/bin/ld.lld"
@@ -28,10 +33,8 @@ def run_training():
 
     accelerator.print(f"Working directory: {os.getcwd()}")
 
-    vocabulary_size = 32_768
-    context_size = 768
-    tokenizer_name = f"tokenizers/custom/{vocabulary_size:_}"
-    model_name = f"Modern/large-classiccc-erlstp-1024-unigram-32768-900ksteps"
+    tokenizer_name = os.path.join(WORK_DIR, "tokenizers", "MM", TOKNZ_DIR_COMPL)
+    model_name = f"Modern/{BASE_MULTILANG_MODEL}-freeze-finetune-ptbr-exp"
 
     output_dir = f"training_test/{model_name}"
     os.makedirs(output_dir, exist_ok=True)
@@ -58,28 +61,18 @@ def run_training():
     )
 
     config = ModernBertConfig.from_pretrained(
-        "jhu-clsp/mmBERT-base",
-        reference_compile=False,
+        BASE_MULTILANG_MODEL,
         attn_implementation="flash_attention_2",
-        vocab_size=vocabulary_size,
     )
-    config.vocab_size = vocabulary_size
-    config.max_position_embeddings = context_size
-
-    config.global_rope_theta = 10000.0
-
-    config.local_attention = 128
-    config.pad_token_id = 0
-    config.bos_token_id = 2
-    config.cls_token_id = 2
-    config.eos_token_id = 3
-    config.sep_token_id = 3
 
     model = ModernBertForMaskedLM(config=config)
-    # Reinitialize weights
-    model.apply(model._init_weights)
-    # NOTE: We do NOT call model.to("cuda") or model.half().
-    # The Trainer, powered by Accelerate, will handle device placement and mixed precision.
+
+    # Freezing weights
+    for param in model.parameters():
+        param.requires_grad = False
+
+    for param in model.get_input_embeddings().parameters():
+        param.requires_grad = True
 
     data_collator = DataCollatorForLanguageModeling(
         tokenizer=tokenizer, mlm=True, mlm_probability=0.3
@@ -92,13 +85,13 @@ def run_training():
     training_args = TrainingArguments(
         output_dir=output_dir,
         overwrite_output_dir=False,
-        max_steps=2_000_000,
-        per_device_train_batch_size=256,
+        max_steps=500_000,
+        per_device_train_batch_size=64,
         gradient_accumulation_steps=1,
         dataloader_num_workers=32,
         logging_strategy="steps",
         logging_first_step=True,
-        logging_steps=1_000,
+        logging_steps=10_000,
         save_strategy="steps",
         save_steps=10_000,
         save_total_limit=5,
@@ -106,9 +99,9 @@ def run_training():
         report_to=["tensorboard", "mlflow"],
 
         gradient_checkpointing=False,
-        torch_compile=True,
+        #torch_compile=True,
         
-        per_device_eval_batch_size=256,
+        per_device_eval_batch_size=64,
         eval_strategy="steps",
         eval_steps=10_000, 
         load_best_model_at_end=True, 
@@ -137,7 +130,7 @@ def run_training():
         trainer.train()
     accelerator.print("Training complete!")
 
-    trainer.save_model("saved_models/Modern/BERTomelo-ModernBERT-Large-900steps-1k-erlstp")
+    trainer.save_model(f"saved_models/Modern/{BASE_MULTILANG_MODEL}-freeze-finetune-ptbr-expv1")
 
 if __name__ == "__main__":
     run_training()

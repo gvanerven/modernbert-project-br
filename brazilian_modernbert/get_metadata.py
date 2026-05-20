@@ -1,8 +1,9 @@
 import os
 import numpy as np
-from datasets import load_from_disk
+from datasets import load_from_disk, load_dataset
 from tqdm import tqdm
 import json
+from multiprocessing import cpu_count
 
 # --- CONFIGURATION ---
 DATASET_PATH = "/work1/lgarcia/gvanerven/data/unpadded-tokenized-for-training/custom/vocab_size:32_768/context_size:1024"
@@ -14,13 +15,18 @@ def analyze_dataset_full(path, limit):
     print(f"Loading dataset from: {path}")
 
     try:
-        dataset = load_from_disk(path)
+        #dataset = load_from_disk(path)
+        dataset = load_dataset(
+                "unb-labia/CCCPT-unpadded-tokenized-ModBertBR-vs32Kmxlen1K",
+                split="train",
+                num_proc=max(1, cpu_count()-1),        
+            )
     except FileNotFoundError:
         print("Error: Path not found.")
         return
 
     if hasattr(dataset, "keys") and "train" in dataset.keys():
-        ds = dataset["train"]
+        ds = dataset["train"]    
     else:
         ds = dataset
 
