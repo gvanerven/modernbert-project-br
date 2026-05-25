@@ -6,8 +6,9 @@ import json
 from multiprocessing import cpu_count
 
 # --- CONFIGURATION ---
-DATASET_PATH = "/work1/lgarcia/gvanerven/data/unpadded-tokenized-for-training/custom/vocab_size:32_768/context_size:1024"
-CONTEXT_LIMIT = 1024
+DATASET_PATH = "/work1/lgarcia/gvanerven/data/unpadded-tokenized-for-training/custom/vocab_size:32_768/context_size:8192"
+#CONTEXT_LIMIT = 1024
+CONTEXT_LIMIT = 8192
 
 
 def analyze_dataset_full(path, limit):
@@ -15,12 +16,12 @@ def analyze_dataset_full(path, limit):
     print(f"Loading dataset from: {path}")
 
     try:
-        #dataset = load_from_disk(path)
-        dataset = load_dataset(
-                "unb-labia/CCCPT-unpadded-tokenized-ModBertBR-vs32Kmxlen1K",
-                split="train",
-                num_proc=max(1, cpu_count()-1),        
-            )
+        dataset = load_from_disk(path)
+        #dataset = load_dataset(
+        #        "unb-labia/CCCPT-unpadded-tokenized-ModBertBR-vs32Kmxlen1K",
+        #        split="train",
+        #        num_proc=max(1, cpu_count()-1),        
+        #    )
     except FileNotFoundError:
         print("Error: Path not found.")
         return
@@ -107,7 +108,7 @@ def analyze_dataset_full(path, limit):
         f"Good Seqs (> 1024):         {good_seqs:,}  ({good_seqs/total_seqs:.2%})"
     )
     print("Saving json count tokens")
-    with open('/work1/lgarcia/gvanerven/data/unpadded-tokenized-for-training_custom_vocab_size_32_768_context_size_1024.json', 'w') as f:
+    with open('/work1/lgarcia/gvanerven/data/unpadded-tokenized-for-training_custom_vocab_size_32_768_context_size_8192.json', 'w') as f:
         json.dump(tokens_count, f)
 
     array_tokens_dict = np.array(list(tokens_count.values()), dtype=np.int64)
@@ -116,7 +117,7 @@ def analyze_dataset_full(path, limit):
     assert total_tokens == total_tokens_dict, "Tokens count must be the same"
 
     print(
-        f"Total [UNK] (id = 1):         {tokens_count['1']},  ({(tokens_count['1']/total_tokens_dict)*100}%)"
+        f"Total [UNK] (id = 1):         {tokens_count[1]},  ({(tokens_count[1]/total_tokens_dict)*100}%)"
     )
 
     print("=" * 50)

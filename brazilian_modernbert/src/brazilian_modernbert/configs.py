@@ -14,7 +14,8 @@ ALTERNATIVE_TOKENIZER = "neuralmind/bert-large-portuguese-cased"
 BASE_MULTILANG_MODEL = "jhu-clsp/mmBERT-base"
 
 VOCABULARY_SIZE = 32_768
-CONTEXT_SIZE = 1024
+#CONTEXT_SIZE = 1024
+CONTEXT_SIZE = 8192
 
 # Salvamos o path do Cache par ao HuggingFace
 # os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "0"
