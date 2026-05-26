@@ -47,7 +47,7 @@ def clean_for_second_phase(dataset):
 
     len_dataset_u1024 = len(cleaned_dataset_under_1024)
     print(f"Size under 1024: {len_dataset_u1024}")
-    s_size = math.ceil(len_dataset_u1024*0.2) # len_dataset_u1024*0.50*0.40
+    s_size = math.ceil(len_dataset_u1024*0.02) # len_dataset_u1024*0.50*0.40
     print(f"Size sample under 1024: {s_size}")
 
     indices_under_1024 = np.random.choice(len(cleaned_dataset_under_1024), size=s_size, replace=False)
@@ -59,7 +59,7 @@ def clean_for_second_phase(dataset):
     len_dataset_o1024 = len(cleaned_dataset_over_1024)
     print(f"Size over 1024: {len_dataset_o1024}")
     # len_dataset_u1024*0.50*0.60
-    indices_over_1024 = np.random.choice(len_dataset_o1024, size=math.ceil(len_dataset_u1024*0.3), replace=True)
+    indices_over_1024 = np.random.choice(len_dataset_o1024, size=math.ceil(len_dataset_u1024*0.03), replace=True)
 
     print(f"Size sample over 1024: {len(indices_over_1024)}")
     cleaned_dataset = concatenate_datasets([cleaned_dataset_under_1024.select(indices_under_1024), cleaned_dataset_over_1024.select(indices_over_1024)])
