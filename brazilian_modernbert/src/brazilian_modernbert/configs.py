@@ -8,7 +8,7 @@ TRAIN_TOKENIZER = False
 
 WORK_DIR = os.getenv("WORK")
 DATA_FOLDER = os.path.join(WORK_DIR, "data")
-CACHED_DATA_FOLDER = os.path.join(WORK_DIR, "data", "tmpdata")
+CACHED_DATA_FOLDER = os.path.join(WORK_DIR, "data")
 USE_ALTERNATIVE_TOKENIZER = False
 ALTERNATIVE_TOKENIZER = "neuralmind/bert-large-portuguese-cased"
 BASE_MULTILANG_MODEL = "jhu-clsp/mmBERT-base"
@@ -26,3 +26,4 @@ CONTEXT_SIZE = 8192
 os.chdir(WORK_DIR)
 
 logger.info("Working directory set: %s", os.getcwd())
+

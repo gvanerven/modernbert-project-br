@@ -8,6 +8,7 @@ from transformers import (
     AutoTokenizer,
     Trainer,
     TrainingArguments,
+    EarlyStoppingCallback,
 )
 from torch.optim import AdamW
 from transformers import get_wsd_schedule
@@ -24,7 +25,7 @@ def run_training():
     DATA_FOLDER = os.path.join(WORK_DIR, "data")
     CACHED_DATA_FOLDER = os.path.join(WORK_DIR, "cached_data")
     os.environ["HF_HOME"] = CACHED_DATA_FOLDER
-    os.environ["TRITON_HIP_LLD_PATH"] = "/opt/rocm-6.4.1/lib/llvm/bin/ld.lld"
+    os.environ["TRITON_HIP_LLD_PATH"] = "/opt/rocm-7.1.0/lib/llvm/bin/ld.lld"
     os.chdir(WORK_DIR)
 
     accelerator.print(f"Working directory: {os.getcwd()}")
@@ -32,12 +33,13 @@ def run_training():
     vocabulary_size = 32_768
     context_size = 8192
 
-    source_checkpoint = os.path.join(
-        WORK_DIR,
-        "training_test/Modern/classiccc-1024-unigram-32768-900ksteps/checkpoint-900000",
-    )
+    #source_checkpoint = os.path.join(
+    #    WORK_DIR,
+    #    "training_test/Modern/classiccc-1024-unigram-32768-900ksteps/checkpoint-900000",
+    #)
+    source_checkpoint = "unb-labia/BERTomelo-ModernBERT-Base-v1"
     tokenizer_name = f"tokenizers/custom/{vocabulary_size:_}"
-    model_name = f"Modern/classiccc-8192-unigram-32768-150ksteps"
+    model_name = f"Modern/classiccc-8192-unigram-32768-150ksteps-erlsp"
 
     output_dir = f"training_test/{model_name}"
     os.makedirs(output_dir, exist_ok=True)
@@ -47,8 +49,8 @@ def run_training():
         f"unpadded-tokenized-for-training/custom/vocab_size:{vocabulary_size:_}/context_size:{context_size}",
     )
     tokenized_datasets = load_from_disk(tokenized_datasets_name)
-    training_dataset = tokenized_datasets
-    # eval_dataset = tokenized_datasets["test"]
+    training_dataset = tokenized_datasets["train"]
+    eval_dataset = tokenized_datasets["validation"]
 
     tokenizer = AutoTokenizer.from_pretrained(
         tokenizer_name, local_files_only=True, cache_dir=CACHED_DATA_FOLDER
@@ -82,26 +84,34 @@ def run_training():
         tokenizer=tokenizer, mlm=True, mlm_probability=0.3
     )
 
+    early_stopping = EarlyStoppingCallback(early_stopping_patience=4)
+    random_eval_dataset = eval_dataset.shuffle(seed=42).select(range(1_500_000))
+
     training_args = TrainingArguments(
         output_dir=output_dir,
-        overwrite_output_dir=False,
-        max_steps=150_000,
-        per_device_train_batch_size=8,
-        gradient_accumulation_steps=1,
-        dataloader_num_workers=16,
+        max_steps=240_000,
+        per_device_train_batch_size=48,
+        gradient_accumulation_steps=8,
+        dataloader_num_workers=32,
         logging_strategy="steps",
         logging_first_step=True,
         logging_steps=100,
         save_strategy="steps",
-        save_steps=5_000,
+        save_steps=10_000,
         save_total_limit=5,
         fp16=True,
-        report_to="tensorboard",
         gradient_checkpointing=True,
         seed=42,
         data_seed=42,
-        learning_rate=5e-5,
-        weight_decay=0.01,
+        learning_rate=3e-4, #Base 3e-4, Large 5e-5
+        weight_decay=1e-5, #Base 1e-5, Large 1e-6
+        torch_compile=True,
+        report_to=["tensorboard", "mlflow"],
+
+        eval_strategy="steps",
+        eval_steps=10_000, 
+        load_best_model_at_end=True, 
+        metric_for_best_model="eval_loss",
     )
 
     no_decay = ["bias", "LayerNorm.weight"]
@@ -142,8 +152,10 @@ def run_training():
         model=model,
         args=training_args,
         train_dataset=training_dataset,
+        eval_dataset=random_eval_dataset,
         data_collator=data_collator,
         optimizers=(optimizer, lr_scheduler),
+        callbacks=[early_stopping]
     )
 
     accelerator.print("Starting training on all available GPUs...")
@@ -160,6 +172,8 @@ def run_training():
             "Starting 8k training (initialized from 1024 checkpoint)..."
         )
         trainer.train()
+
+    trainer.save_model("saved_models/Modern/BERTomelo-ModernBERT-Large-8k-erlstp")
 
     accelerator.print("Training complete!")
 
