@@ -15,6 +15,7 @@ from transformers import get_wsd_schedule
 from transformers.trainer_utils import get_last_checkpoint
 
 from accelerate import Accelerator
+import math
 
 
 def run_training():
@@ -39,7 +40,7 @@ def run_training():
     #)
     source_checkpoint = "unb-labia/BERTomelo-ModernBERT-Base-v1"
     tokenizer_name = f"tokenizers/custom/{vocabulary_size:_}"
-    model_name = f"Modern/classiccc-8192-unigram-32768-150ksteps-erlsp"
+    model_name = f"Modern/base-classiccc-8192-unigram-32768-phase1-erlsp"
 
     output_dir = f"training_test/{model_name}"
     os.makedirs(output_dir, exist_ok=True)
@@ -49,7 +50,9 @@ def run_training():
         f"unpadded-tokenized-for-training/custom/vocab_size:{vocabulary_size:_}/context_size:{context_size}",
     )
     tokenized_datasets = load_from_disk(tokenized_datasets_name)
-    training_dataset = tokenized_datasets["train"]
+    len_ds = len(tokenized_datasets["train"])
+    training_dataset = tokenized_datasets["train"][:math.ceil(len_ds*0.8)]
+    accelerator.print(f"Size training dataset (phase 1): {len(training_dataset)}")
     eval_dataset = tokenized_datasets["validation"]
 
     tokenizer = AutoTokenizer.from_pretrained(
@@ -89,29 +92,36 @@ def run_training():
 
     training_args = TrainingArguments(
         output_dir=output_dir,
-        max_steps=240_000,
-        per_device_train_batch_size=48,
-        gradient_accumulation_steps=8,
-        dataloader_num_workers=32,
+        #max_steps=45_000,
+        num_train_epochs=1,
+        per_device_train_batch_size=16,
+        gradient_accumulation_steps=2,
+        dataloader_num_workers=8,
         logging_strategy="steps",
         logging_first_step=True,
         logging_steps=100,
         save_strategy="steps",
         save_steps=10_000,
         save_total_limit=5,
-        fp16=True,
-        gradient_checkpointing=True,
+        bf16=True,
+        gradient_checkpointing=False,
         seed=42,
         data_seed=42,
         learning_rate=3e-4, #Base 3e-4, Large 5e-5
         weight_decay=1e-5, #Base 1e-5, Large 1e-6
-        torch_compile=True,
         report_to=["tensorboard", "mlflow"],
+        
+        ddp_find_unused_parameters=False,
+        #torch_compile=True,                  # Enables torch.compile()
+        #torch_compile_backend="inductor",    # Default high-performance backend
+        #torch_compile_mode="default",
 
+        per_device_eval_batch_size=4,
         eval_strategy="steps",
         eval_steps=10_000, 
         load_best_model_at_end=True, 
         metric_for_best_model="eval_loss",
+
     )
 
     no_decay = ["bias", "LayerNorm.weight"]
@@ -139,24 +149,15 @@ def run_training():
 
     total_steps = training_args.max_steps
 
-    lr_scheduler = get_wsd_schedule(
-        optimizer=optimizer,
-        num_warmup_steps=int(total_steps * 0.1),
-        num_stable_steps=int(total_steps * 0.5),
-        num_decay_steps=int(total_steps * 0.4),
-        min_lr_ratio=0.0,
-        num_cycles=0.5,
-    )
-
-    trainer = Trainer(
+    trainer = accelerator.prepare(Trainer(
         model=model,
         args=training_args,
         train_dataset=training_dataset,
         eval_dataset=random_eval_dataset,
         data_collator=data_collator,
-        optimizers=(optimizer, lr_scheduler),
+        optimizers=(optimizer),
         callbacks=[early_stopping]
-    )
+    ))
 
     accelerator.print("Starting training on all available GPUs...")
 

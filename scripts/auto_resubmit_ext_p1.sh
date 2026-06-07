@@ -33,7 +33,7 @@
 #SBATCH -o %x-output.%j     # Name of stdout output file (%j expands to jobId)
 #SBATCH -N 1                # Total number of nodes requested
 #SBATCH -t 12:00:00         # Run time (hh:mm:ss)
-#SBATCH -p mi3258x          # Desired partition      
+#SBATCH -p mi3008x          # Desired partition      
 
 MAX_ITERATIONS=24
 
@@ -55,7 +55,7 @@ if [ "$ITERATION" -eq 1 ]; then
 
     export LAST_JOB_ID="${CURRENT_JOB_ID}"
     echo "Submitting 2nd job."
-    NEXT_JOB_ID=$(sbatch --parsable --dependency=afternotok:${CURRENT_JOB_ID} $WORK/modernbert-project-br/scripts/auto_resubmit.sh)
+    NEXT_JOB_ID=$(sbatch --parsable --dependency=afternotok:${CURRENT_JOB_ID} $WORK/modernbert-project-br/scripts/auto_resubmit_ext_p1.sh)
 
 # We're on the 2nd through N-1 iteration
 elif [[ "$ITERATION" -gt 1 && "$ITERATION" -lt "$MAX_ITERATIONS" ]]; then
@@ -68,7 +68,7 @@ elif [[ "$ITERATION" -gt 1 && "$ITERATION" -lt "$MAX_ITERATIONS" ]]; then
 
         export LAST_JOB_ID="${CURRENT_JOB_ID}"
         echo "Submitting next job."
-        NEXT_JOB_ID=$(sbatch --parsable --dependency=afternotok:${CURRENT_JOB_ID} $WORK/modernbert-project-br/scripts/auto_resubmit.sh)
+        NEXT_JOB_ID=$(sbatch --parsable --dependency=afternotok:${CURRENT_JOB_ID} $WORK/modernbert-project-br/scripts/auto_resubmit_ext_p1.sh)
 
     else
 
@@ -116,7 +116,7 @@ source $WORK/bertx300/bin/activate
 #source $WORK/bertx200/bin/activate 
 #
 rocm-smi
-accelerate launch --multi_gpu --num_processes=8 --num_machines=1 --dynamo_backend="no" --mixed_precision="bf16" $WORK/modernbert-project-br/scripts/extension_train_entrypoint.py 
+accelerate launch --multi_gpu --num_processes=8 --num_machines=1 --fsdp_use_orig_params true --dynamo_backend="no" --mixed_precision="bf16" $WORK/modernbert-project-br/scripts/extension_train_entrypoint_phase1.py 
 #accelerate launch --num_processes=1 --num_machines=1 --dynamo_backend="no" --mixed_precision="bf16" $WORK/modernbert-project-br/scripts/train_entrypoint.py 
 
 # ---------------------------------------------------------
