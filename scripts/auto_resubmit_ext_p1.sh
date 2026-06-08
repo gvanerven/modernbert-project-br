@@ -112,6 +112,7 @@ fi
 
 # Activate the virtual environment
 module load rocm/7.1.0
+#module load rocm/7.2.0
 source $WORK/bertx300/bin/activate
 #source $WORK/bertx200/bin/activate 
 #
