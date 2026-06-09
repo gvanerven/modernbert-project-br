@@ -50,7 +50,7 @@ def run_training():
         DATA_FOLDER,
         f"unpadded-tokenized-for-training/custom/vocab_size:{vocabulary_size:_}/context_size:{context_size}",
     )
-    tokenized_datasets = load_from_disk(tokenized_datasets_name)
+    tokenized_datasets = load_from_disk(tokenized_datasets_name, keep_in_memory=False)
     len_ds = len(tokenized_datasets["train"])
     training_dataset = tokenized_datasets["train"].select(range(math.ceil(len_ds*0.8)-1))
     accelerator.print(f"Size training dataset (phase 1): {len(training_dataset)}")
@@ -95,14 +95,14 @@ def run_training():
         output_dir=output_dir,
         #max_steps=45_000,
         num_train_epochs=1,
-        per_device_train_batch_size=8,
-        gradient_accumulation_steps=2,
-        dataloader_num_workers=16,
+        per_device_train_batch_size=4,
+        gradient_accumulation_steps=8,
+        dataloader_num_workers=8,
         logging_strategy="steps",
         logging_first_step=True,
         logging_steps=100,
         save_strategy="steps",
-        save_steps=10_000,
+        save_steps=1_000,
         save_total_limit=5,
         bf16=True,
         gradient_checkpointing=False,
@@ -119,7 +119,7 @@ def run_training():
 
         per_device_eval_batch_size=4,
         eval_strategy="steps",
-        eval_steps=10_000, 
+        eval_steps=1_000, 
         load_best_model_at_end=True, 
         metric_for_best_model="eval_loss",
 
